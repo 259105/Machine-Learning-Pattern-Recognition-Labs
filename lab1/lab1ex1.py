@@ -21,7 +21,7 @@ if __name__ == "__main__" :
             competitor = Competitor(name,surname,country,judges);
             #Competitor(fields[0],fields[1],fields[2],fields[3:])
             top3Competitor.append(competitor);
-            top3Competitor = top3Competitor.sort(lambda comp : comp.score(),True)[:3];
+            top3Competitor = sorted(top3Competitor, key = lambda i: i.score())[::-1][0:3]
             if country not in countryScore :
                 countryScore[country] = 0;
             countryScore[country] += competitor.score();
@@ -32,13 +32,13 @@ if __name__ == "__main__" :
     
     print("Final ranking:");
     for pos, comp in enumerate(top3Competitor) :
-        print("%d: %s %s - Score: %f" % pos+1, comp.name, comp.surname, comp.score());
+        print("%d: %s %s - Score: %.1f" % (pos+1, comp.name, comp.surname, comp.score()));
     print();
     print("Best country:");
     bestCountry = None;
     for country in countryScore:
         if  bestCountry is None or countryScore[country]>countryScore[bestCountry] :
             bestCountry = country;
-    print("%s Total Score: %f" % bestCountry, countryScore[bestCountry]);
+    print("%s Total Score: %.1f" % (bestCountry, countryScore[bestCountry]));
 
 
