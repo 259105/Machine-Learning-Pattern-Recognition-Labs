@@ -25,14 +25,19 @@ if __name__ == "__main__" :
             if country not in countryScore :
                 countryScore[country] = 0;
             countryScore[country] += competitor.score();
+
+    if len(countryScore) == 0 : 
+        print("No competitors");
+        sys.exit(0);
     
     print("Final ranking:");
     for pos, comp in enumerate(top3Competitor) :
         print("%d: %s %s - Score: %f" % pos+1, comp.name, comp.surname, comp.score());
+    print();
     print("Best country:");
-    bestCountry = "";
+    bestCountry = None;
     for country in countryScore:
-        if  not bestCountry or countryScore[country]>countryScore[bestCountry] :
+        if  bestCountry is None or countryScore[country]>countryScore[bestCountry] :
             bestCountry = country;
     print("%s Total Score: %f" % bestCountry, countryScore[bestCountry]);
 
