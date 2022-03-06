@@ -57,7 +57,7 @@ if __name__ == "__main__" :
         print("%s - Total Distance: %.1f" % (par,result));
     elif flag == "l" : 
         distinctBus = set([busStop.bus for busStop in lBussesStopLine])
-        orderedStops = sorted(lBussesStopLine, key = (lambda b : b.time));
+        orderedStops = sorted(lBussesStopLine, key = lambda b : b.time);
         dist = 0.0;
         time = 0.0;
         for bus in distinctBus :
@@ -79,6 +79,8 @@ if __name__ == "__main__" :
                     dist += prevP.dist(currP);
                     time += currT - prevT;
         avgSpeed = dist/time;
-        print("%s - Avg Speed: %f" % (par, avgSpeed));
+        print("%s - Avg Speed: " % par, avgSpeed);
+    else :
+        raise KeyError();
 
 
