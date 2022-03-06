@@ -30,7 +30,10 @@ class BusStop :
         self.time = time;
 
 if __name__ == "__main__" :
-    flag = sys.argv[2][1];
+    try :
+        flag = sys.argv[2][1];
+    except :
+        raise KeyError();
     par = sys.argv[3];
     result = 0.0;
     lBussesStopLine = [];
@@ -80,7 +83,5 @@ if __name__ == "__main__" :
                     time += currT - prevT;
         avgSpeed = dist/time;
         print("%s - Avg Speed: " % par, avgSpeed);
-    else :
-        raise KeyError();
 
 
