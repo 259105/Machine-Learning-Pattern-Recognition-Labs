@@ -74,8 +74,8 @@ def scatter(D,L) :
 if __name__ == "__main__" :
     #ds, lab = load(sys.argv[1]);
     ds, lab = loadIrisDataset();
-    #print(ds);
-    #print(lab);
+    print(ds);
+    print(lab);
     
     histograms(ds,lab);
     scatter(ds,lab);
