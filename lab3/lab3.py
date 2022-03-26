@@ -92,7 +92,7 @@ if __name__ == "__main__" :
         DClC = DCl - toCol(DCl.mean(1));    # center the data
         MC = toCol(DCl.mean(1)) - toCol(D.mean(1)); # center the mean of class, respect the global mean
         ## COMPUTING ELEMENT-I OF THE SUMMATORY OF Sb
-        Sb += numpy.dot(DClC.shape[1]*MC,MC.T);
+        Sb += DClC.shape[1]*numpy.dot(MC,MC.T);
         # Swc = numpy.dot(DClC,DClC.T)/DClC.shape[1]; # covariance matrix for class-i
         # Sw +=Swc*DClC.shape[1];
         # in order to save time we can remove div and mul
