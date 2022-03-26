@@ -1,6 +1,8 @@
 import numpy
+import scipy
 import matplotlib.pyplot as plt
 import sys
+from collections import Counter
 
 def toCol(v) :
     return v.reshape((v.size,1));
@@ -34,7 +36,7 @@ def scatter2attrs(D,L) :
         plt.scatter(classData[0,:],classData[1,:],label=flowerType);
     plt.legend;
     plt.tight_layout;
-    plt.show();
+    #plt.show();
 
 if __name__ == "__main__" :
     m = int(sys.argv[1]);
@@ -45,6 +47,11 @@ if __name__ == "__main__" :
     # Attrs: sepal-length, sepal-width, petal-length, petal-width 
     #print(D);
     #print(L);
+    K = len(Counter(L).keys()); # number of distinct elements in the array
+                                # it is the number of distinct label
+    #print(K);
+
+    ############################## PCA #####################################
 
     ## CENTERING THE DATA ##
     DC = D - toCol(D.mean(1));
@@ -70,7 +77,53 @@ if __name__ == "__main__" :
     #print(P);
 
     ## PROJECTING DATA ON NEW BASE ##
-    DP = numpy.dot(P.T,D);
+    DPPCA = numpy.dot(P.T,D);
 
     ## PLOTTING THE DATA ##
-    #scatter2attrs(DP,L);
+    scatter2attrs(DPPCA,L);
+
+    ############################## LDA #####################################
+
+    ## COMPUTING Sw (WITHIN COVARIANCE MATRIX) AND Sb ##
+    Sw = 0;
+    Sb = 0;
+    for i in range(K) :
+        DCl = D[:,L==i];    # take only samples of the class-i
+        DClC = DCl - toCol(DCl.mean(1));    # center the data
+        MC = toCol(DCl.mean(1)) - toCol(D.mean(1)); # center the mean of class, respect the global mean
+        ## COMPUTING ELEMENT-I OF THE SUMMATORY OF Sb
+        Sb += numpy.dot(DClC.shape[1]*MC,MC.T);
+        # Swc = numpy.dot(DClC,DClC.T)/DClC.shape[1]; # covariance matrix for class-i
+        # Sw +=Swc*DClC.shape[1];
+        # in order to save time we can remove div and mul
+        ## COMPUTING ELEMENT-I OF THE SUMMATORY OF Sw
+        Sw += numpy.dot(DClC,DClC.T);
+    Sw = Sw/DC.shape[1];
+    Sb = Sb/DC.shape[1];
+    #print(Sw);
+    #print(Sb);
+
+    ## COMPUTING THE EIG VALUES OF THE GENERALIZED EIGENVALUE PROBLEM FOR HERMITIAN MATRICIES
+    s, U = scipy.linalg.eigh(Sb,Sw); # numpy here don't work, numpy don't solve the generalized problem
+    W = U[:,::-1][:,0:(m if m<K else K-1)]; # take the voluted dimension if it is <= K-1, constraints given by the LDA
+ 
+    ## PRINT ERRO OF MY SOLUTION VS THE SOL OF PROF ##
+    #print(W-numpy.load("IRIS_LDA_matrix_m2.npy"));
+
+    ## MADE THE W MATRIX ORTOGONAL ##
+    UW= numpy.linalg.svd(W)[0];
+    print(UW[1]);
+    WO = UW[:,0:(m if m<K else K-1)];
+    #print(WO)
+    #print(W);
+
+    ## CHECK IF IT'S CORRECT ##
+    #print(numpy.linalg.svd(numpy.hstack([W,numpy.load("IRIS_LDA_matrix_m2.npy")]))[1]); # must have at most m non-zero singular values
+
+    ## PROJECTING DATA ON NEW BASE ##
+    DPLDAO = numpy.dot(WO.T,D);
+    DPLDA = numpy.dot(W.T,D);
+    ## PLOTTING THE DATA ##
+    scatter2attrs(DPLDAO,L);
+    scatter2attrs(DPLDA,L);
+    plt.show();
