@@ -1,3 +1,4 @@
+from asyncio.windows_events import NULL
 import numpy;
 import scipy;
 import scipy.special;
@@ -57,17 +58,11 @@ def logpdf_GAU_ND(x, mu, C) :
     # take only the rows (i,i) 
     return numpy.diagonal(first+second+third);
 
-
-if __name__ == "__main__" :
-    # take data
-    D, L = loadIrisDataset();
-    # divide in training and test set
-    (DTR, LTR),(DTE, LTE) = split_db_2to1(D, L, 0);
-
-    u = []; # means
-    C = []; # Covariance matrixes
-    S = []; # Score matrix
-    PrioP = [1/3, 1/3, 1/3] # Prior prob
+def MVG_Classifier(DTR, LTR, DTE, LTE) :
+    print("MVG-Classifier")
+    u = []; # array of means vectors by class
+    C = []; # array of covariance matrices by class
+    PrioP = [1/3, 1/3, 1/3] # Prior prob of classes
     SJoint = [] ;
     ## MULTIVARIATE GAUSSIAN CLASSIFIER
     for i in [0,1,2] : 
@@ -76,6 +71,7 @@ if __name__ == "__main__" :
         DTRi = DTR[:, LTR==i];
         # compute the mean
         u.append(mcol(DTRi.mean(1)));
+        # center the points
         DTRiC = DTRi - u[i];
         # compute the covariance matrix
         C.append(numpy.dot(DTRiC,DTRiC.T)/DTRiC.shape[1]);
@@ -83,48 +79,422 @@ if __name__ == "__main__" :
 
         ## INFERENCE FOR TEST SAMPLE
         # compute the likelihoods function
-        S.append(mrow(numpy.exp(logpdf_GAU_ND(DTE,u[i],C[i]))));
+        S = mrow(numpy.exp(logpdf_GAU_ND(DTE,u[i],C[i])));
         # compute the join distribution
-        SJoint.append(S[i]*PrioP[i]);
-
-    # Check solution 
-    #sol = numpy.load('Solution/SJoint_MVG.npy');
-    #print(numpy.vstack(SJoint).shape);
-    #print(sol.shape);
-    #print((numpy.vstack(SJoint) - sol).sum());
-
+        SJoint.append(S*PrioP[i]);
+    # vertically stack the SJoint array into numpy.ndarray
     SJoint = numpy.vstack(SJoint);
     # compute the marginal denisty
-    margDens = mrow(SJoint.sum(0));
+    SMarginal = mrow(SJoint.sum(0));
     # compute the posterior prob
-    SPost = SJoint/margDens;
+    SPost = SJoint/SMarginal;
     # find the predicted label
     predClass = SPost.argmax(0);
     #print(predClass); print(LTE);
 
     ## ACCURACY OF MODEL
     # (num Wrong prediction)/(num of samples)
-    err = (predClass!=LTE).sum() / LTE.size;
-    print(err);
+    acc = (predClass!=LTE).sum() / LTE.size;
+    print("Accuracy :")
+    print(acc);
+    print("Checks:")
+    print((numpy.load("Solution/SJoint_MVG.npy")-SJoint).sum());
+    print((numpy.load("Solution/Posterior_MVG.npy")-SPost).sum());
 
     ## AGAIN BUT WITH LOG
-    S = [];
+    print("Log-densities:")
     logSJoint = [];
-    for i in [0,1,2] :
-        S.append(mrow(logpdf_GAU_ND(DTE,u[i],C[i])));
-        logSJoint.append(S[i]+numpy.log(PrioP[i]));
+    for i in range(3) :
+        S = mrow(logpdf_GAU_ND(DTE,u[i],C[i]));
+        logSJoint.append(S+numpy.log(PrioP[i]));
     logSJoint = numpy.vstack(logSJoint);
     # caclulate the log-sum-exp trick
     logSMarginal = mrow(scipy.special.logsumexp(logSJoint,axis=0));
+    # compute the posterior prob
+    logSPost = logSJoint - logSMarginal;
+    SPostLog = numpy.exp(logSPost);
+    # find the predicted label
+    predClassLog = SPostLog.argmax(0);
+
+    err = (predClassLog!=LTE).sum() / LTE.size;
+    print("Accuracy :")
+    print(err);
+    print("Checks:")
+    print((numpy.load("Solution/logSJoint_MVG.npy")-logSJoint).sum());
+    print((numpy.load("Solution/logMarginal_MVG.npy")-logSMarginal).sum());
+    print((numpy.load("Solution/logPosterior_MVG.npy")-logSPost).sum());
+    print();
+
+def NaiveBayes_Classifier(DTR,LTR,DTE,LTE) :
+    # since the number of features is small, we can adapt the MVG code by simply zeroing the out-of-diagonal elements of the MVG ML solution. This can be done, for example, multiplying element-wise the MVG ML solution with the identity matrix. The rest of the code remains unchanged. If we have large dimensional data, it may be advisable to implement ad-hoc functions to work directly with just the diagonal of the covariance matrices
+    # Implemented !!!! See Cfast
+    print("NaiveBayes-Classifier");
+    ## -------------- MODEL ---------------------
+    u = []; # array of means vectors by class
+    C = []; # array of covariance matrices by class
+    for i in range(3) :
+        # take the samples of class i
+        DTRi = DTR[:,LTR==i];
+        # compute the mean
+        u.append(mcol(DTRi.mean(1)));
+        # center the points
+        DTRiC = DTRi - u[i];
+        # compute the covariance matrix with MVG metod
+        C.append(numpy.dot(DTRiC,DTRiC.T)/DTRiC.shape[1]);
+        C[i] = C[i] * numpy.identity(DTRiC.shape[0]); # take only the diagonal
+        # compute the covariance matrix fast method
+        Cfast = numpy.diag((DTRiC**2).sum(1))/DTRiC.shape[1];
+    ## --------------- INFERENCE ---------------
+    SJoint = []; # array of joint probability by class then vetical Stacked
+    PrioP = [1/3,1/3,1/3]; # Prior prob of classes
+    for i in range(3) :
+        # compute the likelihoods function
+        S = mrow(numpy.exp(logpdf_GAU_ND(DTE,u[i],C[i])));
+        # compute the join distribution
+        SJoint.append(S*PrioP[i]);
+    # vertically stack the SJoint array into numpy.ndarray
+    SJoint = numpy.vstack(SJoint);
+    # compute the marginal denisty
+    SMarginal = mrow(SJoint.sum(0));
+    # compute the posterior prob
+    SPost = SJoint/SMarginal;
+    # find the predicted label
+    predClass = SPost.argmax(0);
+
+    ## ------------ ACCURACY OF MODEL ------------
+    # (num Wrong prediction)/(num of samples)
+    err = (predClass!=LTE).sum() / LTE.size;
+    print("Accuracy :")
+    print(err);
+    print("Checks:")
+    print((numpy.load("Solution/SJoint_NaiveBayes.npy")-SJoint).sum());
+    print((numpy.load("Solution/Posterior_NaiveBayes.npy")-SPost).sum());
+
+    ## -------------  AGAIN BUT WITH LOG ---------
+    print("Log-densities:")
+    logSJoint = [];
+    for i in range(3) :
+        S = mrow(logpdf_GAU_ND(DTE,u[i],C[i]));
+        logSJoint.append(S+numpy.log(PrioP[i]));
+    logSJoint = numpy.vstack(logSJoint);
+    # caclulate the log-sum-exp trick
+    logSMarginal = mrow(scipy.special.logsumexp(logSJoint,axis=0));
+    # compute the posterior prob
+    logSPost = logSJoint - logSMarginal;
+    SPostLog = numpy.exp(logSPost);
+    # find the predicted label
+    predClassLog = SPostLog.argmax(0);
+
+    err = (predClassLog!=LTE).sum() / LTE.size;
+    print("Accuracy :")
+    print(err);
+    print("Checks:")
+    print((numpy.load("Solution/logSJoint_NaiveBayes.npy")-logSJoint).sum());
+    print((numpy.load("Solution/logMarginal_NaiveBayes.npy")-logSMarginal).sum());
+    print((numpy.load("Solution/logPosterior_NaiveBayes.npy")-logSPost).sum());
+    print();
+
+def Tied_MVG_Classifier(DTR,LTR,DTE,LTE) :
+    print("Tied Covariance Gaussian Classifier");
+    ## --------------- MODEL ------------------
+    u = []; # array of means vectors by class
+    C = numpy.zeros((DTR.shape[0],DTR.shape[0])); # covariance matrix
+    for i in range(3) :
+        # take the samples of class i
+        DTRi = DTR[:,LTR==i];
+        # compute the mean
+        u.append(mcol(DTRi.mean(1)));
+        # center the points
+        DTRiC = DTRi - u[i];
+        # compute the partial covariance matrix and add it to within-class
+        C += numpy.dot(DTRiC,DTRiC.T);
+    # divide the partial covariance by the number of samples
+    C /= DTR.shape[1];
+
+    ## --------------- INFERENCE ---------------
+    SJoint = []; # array of joint probability by class then vetical Stacked
+    PrioP = [1/3,1/3,1/3]; # Prior prob of classes
+    for i in range(3) :
+        # compute the likelihoods function
+        S = mrow(numpy.exp(logpdf_GAU_ND(DTE,u[i],C)));
+        # compute the join distribution
+        SJoint.append(S*PrioP[i]);
+    # vertically stack the SJoint array into numpy.ndarray
+    SJoint = numpy.vstack(SJoint);
+    # compute the marginal denisty
+    SMarginal = mrow(SJoint.sum(0));
+    # compute the posterior prob
+    SPost = SJoint/SMarginal;
+    # find the predicted label
+    predClass = SPost.argmax(0);
+
+    ## ------------ ACCURACY OF MODEL ------------
+    # (num Wrong prediction)/(num of samples)
+    err = (predClass!=LTE).sum() / LTE.size;
+    print("Accuracy :")
+    print(err);
+    print("Checks:")
+    print((numpy.load("Solution/SJoint_TiedMVG.npy")-SJoint).sum());
+    print((numpy.load("Solution/Posterior_TiedMVG.npy")-SPost).sum());
+
+    ## -------------  AGAIN BUT WITH LOG ---------
+    print("Log-densities:")
+    logSJoint = [];
+    for i in range(3) :
+        S = mrow(logpdf_GAU_ND(DTE,u[i],C));
+        logSJoint.append(S+numpy.log(PrioP[i]));
+    logSJoint = numpy.vstack(logSJoint);
+    # caclulate the log-sum-exp trick
+    logSMarginal = mrow(scipy.special.logsumexp(logSJoint,axis=0));
+    # compute the posterior prob
+    logSPost = logSJoint - logSMarginal;
+    SPostLog = numpy.exp(logSPost);
+    # find the predicted label
+    predClassLog = SPostLog.argmax(0);
+
+    err = (predClassLog!=LTE).sum() / LTE.size;
+    print("Accuracy :")
+    print(err);
+    print("Checks:")
+    print((numpy.load("Solution/logSJoint_TiedMVG.npy")-logSJoint).sum());
+    print((numpy.load("Solution/logMarginal_TiedMVG.npy")-logSMarginal).sum());
+    print((numpy.load("Solution/logPosterior_TiedMVG.npy")-logSPost).sum());
+    print();
+
+def Tied_NaiveBayes_Classifier(DTR,LTR,DTE,LTE) :
+    print("Tied Naive Bayes Classifier");
+    ## ---------------- MODEL ----------------
+    u = []; # array of means vectors by class
+    C = numpy.zeros((DTR.shape[0],DTR.shape[0])); # covariance matrix
+    for i in range(3) :
+        # take the samples of class i
+        DTRi = DTR[:,LTR==i];
+        # compute the mean
+        u.append(mcol(DTRi.mean(1)));
+        # center the points
+        DTRiC = DTRi - u[i];
+        # compute the partial covariance matrix and add it to within-class
+        C += numpy.dot(DTRiC,DTRiC.T);
+        C = C * numpy.identity(DTRiC.shape[0]); # take only the diagonal
+        # compute the partial covariance matrix fast method
+        Cfast = numpy.diag((DTRiC**2).sum(1))
+    # divide the partial covariance by the number of samples
+    C /= DTR.shape[1];
+
+    ## --------------- INFERENCE ---------------
+    SJoint = []; # array of joint probability by class then vetical Stacked
+    PrioP = [1/3,1/3,1/3]; # Prior prob of classes
+    for i in range(3) :
+        # compute the likelihoods function
+        S = mrow(numpy.exp(logpdf_GAU_ND(DTE,u[i],C)));
+        # compute the join distribution
+        SJoint.append(S*PrioP[i]);
+    # vertically stack the SJoint array into numpy.ndarray
+    SJoint = numpy.vstack(SJoint);
+    # compute the marginal denisty
+    SMarginal = mrow(SJoint.sum(0));
+    # compute the posterior prob
+    SPost = SJoint/SMarginal;
+    # find the predicted label
+    predClass = SPost.argmax(0);
+
+    ## ------------ ACCURACY OF MODEL ------------
+    # (num Wrong prediction)/(num of samples)
+    err = (predClass!=LTE).sum() / LTE.size;
+    print("Accuracy :")
+    print(err);
+    print("Checks:")
+    print((numpy.load("Solution/SJoint_TiedNaiveBayes.npy")-SJoint).sum());
+    print((numpy.load("Solution/Posterior_TiedNaiveBayes.npy")-SPost).sum());
+
+    ## -------------  AGAIN BUT WITH LOG ---------
+    print("Log-densities:")
+    logSJoint = [];
+    for i in range(3) :
+        S = mrow(logpdf_GAU_ND(DTE,u[i],C));
+        logSJoint.append(S+numpy.log(PrioP[i]));
+    logSJoint = numpy.vstack(logSJoint);
+    # caclulate the log-sum-exp trick
+    logSMarginal = mrow(scipy.special.logsumexp(logSJoint,axis=0));
+    # compute the posterior prob
+    logSPost = logSJoint - logSMarginal;
+    SPostLog = numpy.exp(logSPost);
+    # find the predicted label
+    predClassLog = SPostLog.argmax(0);
+
+    err = (predClassLog!=LTE).sum() / LTE.size;
+    print("Accuracy :")
+    print(err);
+    print("Checks:")
+    print((numpy.load("Solution/logSJoint_TiedNaiveBayes.npy")-logSJoint).sum());
+    print((numpy.load("Solution/logMarginal_TiedNaiveBayes.npy")-logSMarginal).sum());
+    print((numpy.load("Solution/logPosterior_TiedNaiveBayes.npy")-logSPost).sum());
+    print();
+
+def MVG_Classifier_Model(DTR, LTR, nK) :
+    u = []; # array of means vectors by class
+    C = []; # array of covariance matrices by class
+    ## MULTIVARIATE GAUSSIAN CLASSIFIER
+    for i in numpy.arange(nK) : 
+        ## ESTIMATION OF MODEL
+        # only the class i
+        DTRi = DTR[:, LTR==i];
+        # compute the mean
+        u.append(mcol(DTRi.mean(1)));
+        # center the points
+        DTRiC = DTRi - u[i];
+        # compute the covariance matrix
+        C.append(numpy.dot(DTRiC,DTRiC.T)/DTRiC.shape[1]);
+    return u, C;
+
+def NaiveBayes_Classifier_Model(DTR, LTR, nK) :
+    u = []; # array of means vectors by class
+    C = []; # array of covariance matrices by class
+    for i in range(nK) :
+        # take the samples of class i
+        DTRi = DTR[:,LTR==i];
+        # compute the mean
+        u.append(mcol(DTRi.mean(1)));
+        # center the points
+        DTRiC = DTRi - u[i];
+        # compute the covariance matrix fast method
+        C.append(numpy.diag((DTRiC**2).sum(1))/DTRiC.shape[1]);
+    return u, C;
+
+def Tied_MVG_Classifier_Model(DTR, LTR, nK) :
+    u = []; # array of means vectors by class
+    D = DTR.shape[0]; # Dimensions of the dataset
+    C = numpy.zeros((D,D)); # covariance matrix inizialization
+    for i in range(nK) :
+        # take the samples of class i
+        DTRi = DTR[:,LTR==i];
+        # compute the mean
+        u.append(mcol(DTRi.mean(1)));
+        # center the points
+        DTRiC = DTRi - u[i];
+        # compute the partial covariance matrix and add it to within-class
+        C += numpy.dot(DTRiC,DTRiC.T);
+    # divide the partial covariance by the number of samples
+    C /= DTR.shape[1];
+    return u, C;
+
+def Tied_NaiveBayes_Classifier_Model(DTR,LTR,nK) :
+    u = []; # array of means vectors by class
+    D = DTR.shape[0]; # Dimensions of the dataset
+    C = numpy.zeros((D,D)); # covariance matrix
+    for i in range(nK) :
+        # take the samples of class i
+        DTRi = DTR[:,LTR==i];
+        # compute the mean
+        u.append(mcol(DTRi.mean(1)));
+        # center the points
+        DTRiC = DTRi - u[i];
+        # compute the partial covariance matrix fast method
+        C += numpy.diag((DTRiC**2).sum(1))
+    # divide the partial covariance by the number of samples
+    C /= DTR.shape[1];
+    return u, C;
+
+def inference(DTE, nK, u, C, prioP, fullCov) :
+    logSJoint = []; # array of joint probability by class then vetical Stacked
+    for i in numpy.arange(nK) :
+        # compute the likelihoods function
+        if fullCov :
+            S = mrow(logpdf_GAU_ND(DTE,u[i],C[i]));
+        else :
+            S = mrow(logpdf_GAU_ND(DTE,u[i],C));
+        # compute the join distribution
+        logSJoint.append(S+numpy.log(prioP[i]));
+    # vertically stack the SJoint array into numpy.ndarray
+    logSJoint = numpy.vstack(logSJoint);
+    # caclulate the log-sum-exp trick
+    logSMarginal = mrow(scipy.special.logsumexp(logSJoint,axis=0));
+    # compute the posterior prob
     logSPost = logSJoint - logSMarginal;
     SPostLog = numpy.exp(logSPost);
 
-    predClassLog = SPostLog.argmax(0);
+    return SPostLog;
 
-    err = (predClass!=LTE).sum() / LTE.size;
-    print(err);
-    # print((numpy.load("Solution/logSJoint_MVG.npy")-logSJoint).sum());
-    # print((numpy.load("Solution/logMarginal_MVG.npy")-logSMarginal).sum());
-    # print((numpy.load("Solution/logPosterior_MVG.npy")-logSPost).sum());
+def KFold_CrossValidation(D, L, K, prioP, seed = 0) :
+    if K < 2 :
+        print("Minimum K = 2");
+        return
+    i = 2;
+    Keff = 0;
+    # find the maximum possible K-fold, truncate by defect
+    N = D.shape[1]; # number of samples in the dataset
+    nK = numpy.unique(L).size; # number of classes in the dataset
+    while i <= K :
+        if N%i == 0 :
+            Keff = i
+        i += 1;
+    sizeFold = int(N/Keff); # dimension of a K-fold sub-dataset
+    # set the seed
+    numpy.random.seed(seed);
+    # create a vector (,1) of random number no repetitions
+    idx = numpy.random.permutation(D.shape[1]); # randomize the samples
+    SPost = [] ; # array of SPost matrices  one for each Model  
+    SPost = [numpy.zeros((nK,N)) for i in range(4)];
+    for i in range(Keff) :
+        # divide the random numbers in Keff-fold parts
+        idxTest = idx[(i*sizeFold):((i+1)*sizeFold)];
+        idxTrain = numpy.append(idx[:(i*sizeFold)], idx[((i+1)*sizeFold):]);
+        # print("FOLD",i);print("Test");print(idxTest);print("Training");print(idxTrain);print();
+        DTR = D[:,idxTrain];
+        LTR = L[idxTrain];
+        DTE = D[:,idxTest];
+        LTE = L[idxTest];
+
+        u, C = MVG_Classifier_Model(DTR,LTR,nK);
+        SPost[0][:,idxTest] = inference(DTE, nK, u, C, prioP, True);
+        # praticamente SPost è un array python composto da 4 numpy.arrays, inference ritorna una matrice (#Class,#SampleInDTE), per metterli nella giusta posizione in cui li abbiamo pescati randomicamente usiamo [:,idxTest] con idxTest = [posizione in cui li abbiamo presi]
+
+        u, C = NaiveBayes_Classifier_Model(DTR,LTR,nK);
+        SPost[1][:,idxTest] = inference(DTE, nK, u, C, prioP, True);
+
+        u, C = Tied_MVG_Classifier_Model(DTR,LTR,nK);
+        SPost[2][:,idxTest] = inference(DTE, nK, u, C, prioP, False);
+
+        u, C = Tied_NaiveBayes_Classifier_Model(DTR,LTR,nK);
+        SPost[3][:,idxTest] = inference(DTE, nK, u, C, prioP, False);
+
+    ## --------- EVALUATION ------------   
+    for i in range(4) :
+        pred = SPost[i].argmax(0);
+        acc = (pred!=L).sum() / N; # calculate the accuracy of model
+        print(acc);
+
+    ## ----------- CHECK SOLUTIONS ---------
+    print();
+    print("Checks:")
+    sol = numpy.load("Solution/LOO_logSJoint_MVG.npy");
+    print((sol - numpy.log(SPost[0])).sum());
+
+    sol = numpy.load("Solution/LOO_logSJoint_NaiveBayes.npy");
+    print((sol - numpy.log(SPost[1])).sum());
+
+    sol = numpy.load("Solution/LOO_logSJoint_TiedMVG.npy");
+    print((sol - numpy.log(SPost[2])).sum());
+
+    sol = numpy.load("Solution/LOO_logSJoint_TiedNaiveBayes.npy");
+    print((sol - numpy.log(SPost[3])).sum());
+
+
+  
+if __name__ == "__main__" :
+    # take data
+    D, L = loadIrisDataset();
+    # divide in training and test set
+    (DTR, LTR),(DTE, LTE) = split_db_2to1(D, L, 0);
+    # MVG Classifier
+    MVG_Classifier(DTR,LTR,DTE,LTE);
+    # Naive Bayes Classifier
+    NaiveBayes_Classifier(DTR,LTR,DTE,LTE);
+    # Tied Covariance Gaussian Classifier
+    Tied_MVG_Classifier(DTR,LTR,DTE,LTE);
+    # Tied Naive Bayes Classifier
+    Tied_NaiveBayes_Classifier(DTR,LTR,DTE,LTE);
+    # K-fold Cross Validation
+    KFold_CrossValidation(D,L,D.shape[1],[1/3,1/3,1/3]);
 
         
