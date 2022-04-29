@@ -413,7 +413,7 @@ def inference(DTE, nK, u, C, prioP, fullCov) :
     logSPost = logSJoint - logSMarginal;
     SPostLog = numpy.exp(logSPost);
 
-    return SPostLog;
+    return logSJoint, SPostLog;
 
 def KFold_CrossValidation(D, L, K, prioP, seed = 0) :
     if K < 2 :
@@ -435,6 +435,8 @@ def KFold_CrossValidation(D, L, K, prioP, seed = 0) :
     idx = numpy.random.permutation(D.shape[1]); # randomize the samples
     SPost = [] ; # array of SPost matrices  one for each Model  
     SPost = [numpy.zeros((nK,N)) for i in range(4)];
+    logSJoint = [] ; # array of SJoint matrices one for each Model  
+    logSJoint = [numpy.zeros((nK,N)) for i in range(4)];
     for i in range(Keff) :
         # divide the random numbers in Keff-fold parts
         idxTest = idx[(i*sizeFold):((i+1)*sizeFold)];
@@ -446,17 +448,17 @@ def KFold_CrossValidation(D, L, K, prioP, seed = 0) :
         LTE = L[idxTest];
 
         u, C = MVG_Classifier_Model(DTR,LTR,nK);
-        SPost[0][:,idxTest] = inference(DTE, nK, u, C, prioP, True);
+        logSJoint[0][:,idxTest], SPost[0][:,idxTest] = inference(DTE, nK, u, C, prioP, True);
         # praticamente SPost è un array python composto da 4 numpy.arrays, inference ritorna una matrice (#Class,#SampleInDTE), per metterli nella giusta posizione in cui li abbiamo pescati randomicamente usiamo [:,idxTest] con idxTest = [posizione in cui li abbiamo presi]
 
         u, C = NaiveBayes_Classifier_Model(DTR,LTR,nK);
-        SPost[1][:,idxTest] = inference(DTE, nK, u, C, prioP, True);
+        logSJoint[1][:,idxTest], SPost[1][:,idxTest] = inference(DTE, nK, u, C, prioP, True);
 
         u, C = Tied_MVG_Classifier_Model(DTR,LTR,nK);
-        SPost[2][:,idxTest] = inference(DTE, nK, u, C, prioP, False);
+        logSJoint[2][:,idxTest], SPost[2][:,idxTest] = inference(DTE, nK, u, C, prioP, False);
 
         u, C = Tied_NaiveBayes_Classifier_Model(DTR,LTR,nK);
-        SPost[3][:,idxTest] = inference(DTE, nK, u, C, prioP, False);
+        logSJoint[3][:,idxTest], SPost[3][:,idxTest] = inference(DTE, nK, u, C, prioP, False);
 
     ## --------- EVALUATION ------------   
     for i in range(4) :
@@ -468,19 +470,17 @@ def KFold_CrossValidation(D, L, K, prioP, seed = 0) :
     print();
     print("Checks:")
     sol = numpy.load("Solution/LOO_logSJoint_MVG.npy");
-    print((sol - numpy.log(SPost[0])).sum());
+    print((sol - logSJoint[0]).sum());
 
     sol = numpy.load("Solution/LOO_logSJoint_NaiveBayes.npy");
-    print((sol - numpy.log(SPost[1])).sum());
+    print((sol - logSJoint[1]).sum());
 
     sol = numpy.load("Solution/LOO_logSJoint_TiedMVG.npy");
-    print((sol - numpy.log(SPost[2])).sum());
+    print((sol - logSJoint[2]).sum());
 
     sol = numpy.load("Solution/LOO_logSJoint_TiedNaiveBayes.npy");
-    print((sol - numpy.log(SPost[3])).sum());
+    print((sol - logSJoint[3]).sum());
 
-
-  
 if __name__ == "__main__" :
     # take data
     D, L = loadIrisDataset();
