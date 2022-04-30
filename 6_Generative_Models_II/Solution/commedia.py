@@ -11,7 +11,7 @@ def load_data():
 
     lInf = []
 
-    f=open('data/inferno.txt', encoding="ISO-8859-1")
+    f=open('../data/inferno.txt', encoding="ISO-8859-1")
 
     for line in f:
         lInf.append(line.strip())
@@ -19,7 +19,7 @@ def load_data():
 
     lPur = []
 
-    f=open('data/purgatorio.txt', encoding="ISO-8859-1")
+    f=open('../data/purgatorio.txt', encoding="ISO-8859-1")
 
     for line in f:
         lPur.append(line.strip())
@@ -27,7 +27,7 @@ def load_data():
 
     lPar = []
 
-    f=open('data/paradiso.txt', encoding="ISO-8859-1")
+    f=open('../data/paradiso.txt', encoding="ISO-8859-1")
 
     for line in f:
         lPar.append(line.strip())
