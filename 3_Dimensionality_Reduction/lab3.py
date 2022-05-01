@@ -39,7 +39,8 @@ def scatter2attrs(D,L) :
     #plt.show();
 
 if __name__ == "__main__" :
-    m = int(sys.argv[1]);
+    # m = int(sys.argv[1]);
+    m = 2
 
     ## GETTING THE DATA ##
     D, L = loadIrisDataset();
@@ -108,7 +109,7 @@ if __name__ == "__main__" :
     W = U[:,::-1][:,0:(m if m<K else K-1)]; # take the voluted dimension if it is <= K-1, constraints given by the LDA
  
     ## PRINT ERRO OF MY SOLUTION VS THE SOL OF PROF ##
-    #print(W-numpy.load("IRIS_LDA_matrix_m2.npy"));
+    print(W-numpy.load("IRIS_LDA_matrix_m2.npy"));
 
     ## MADE THE W MATRIX ORTOGONAL ##
     UW= numpy.linalg.svd(W)[0];
