@@ -109,7 +109,7 @@ def MVG_Classifier(DTR, LTR, DTE, LTE) :
         logSJoint.append(S+numpy.log(PrioP[i]));
     logSJoint = numpy.vstack(logSJoint);
     # caclulate the log-sum-exp trick
-    logSMarginal = mrow(scipy.special.logsumexp(logSJoint,axis=0));
+    logSMarginal = mrow(scipy.special.logsumexp(logSJoint, axis=0));
     # compute the posterior prob
     logSPost = logSJoint - logSMarginal;
     SPostLog = numpy.exp(logSPost);
