@@ -45,7 +45,10 @@ def logreg_obj_wrap(DTR, LTR, lamb):
     """
     Use the 1-of-K encoding of the labels:
     a = array([1,0,3]) =>
-    b = array([[0,1,0,0], [1,0,0,0], [0,0,0,1]])
+    b = array([ [0,1,0,0],
+                [1,0,0,0],
+                [0,0,0,1]])
+    c = b.T
     """
     Z = numpy.zeros((LTR.size, LTR.max()+1))
     Z[numpy.arange(LTR.size), LTR] = 1

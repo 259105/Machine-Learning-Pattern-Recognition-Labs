@@ -58,7 +58,7 @@ def logreg_obj_wrap(DTR, LTR, lamb):
         the function compute log(exp(a) + exp(b)) 
             1 => exp(0)
         """
-        S = numpy.dot(w.T, DTR) + b  # The second operand of  exp(...)
+        S = numpy.dot(w.T, DTR) + b  # (1, N) The second operand of  exp(...)
         obj = numpy.logaddexp(0, -Z*S).mean()  # Computing the log AND doing 1/n * sum(..), practically the mean
         # The norm^2 can be calculated also with:  (w**2).sum()
         return lamb/2 * numpy.linalg.norm(w)**2 + obj
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     The optimizer will calculate in own method the gradient, it will take more iterations and the 
     precision is less accurate
     """
-    x, f, d = scipy.optimize.fmin_l_bfgs_b(f, numpy.zeros(2), approx_grad=True, iprint=1)
+    x, f, d = scipy.optimize.fmin_l_bfgs_b(f, numpy.zeros(2), approx_grad=True)
     print(x)  # x is the estimated position of the minimum
     print(f)  # f is the objective value at the minimum
     print(d)  # d contains additional information
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     The optimizer will do less iteration, and will be more accurate
     Here the optimizer use the gradient that you have calculated, so it's more precise
     """
-    x, f, d = scipy.optimize.fmin_l_bfgs_b(fGrad, numpy.zeros(2), iprint=1)
+    x, f, d = scipy.optimize.fmin_l_bfgs_b(fGrad, numpy.zeros(2))
     print(x)
     print(f)
     print(d)
@@ -97,13 +97,13 @@ if __name__ == "__main__":
     D, L = load_iris_binary()
     (DTR, LTR), (DTE, LTE) = split_db_2to1(D, L)
 
-    for lamb in [10**-6]:
+    for lamb in [10**-6, 10**-3, 10**-1, 1]:
         x, f, d = scipy.optimize.fmin_l_bfgs_b(
                             logreg_obj_wrap(DTR, LTR, lamb),
                             numpy.zeros(DTR.shape[0] + 1),
                             approx_grad=True
                     )
-        print(x)
+        # print(x)
         print(f)
         wBest = mcol(x[0: DTR.shape[0]])  # (D, 1)
         bBest = x[-1]  # scalar

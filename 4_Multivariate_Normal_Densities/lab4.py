@@ -26,9 +26,13 @@ if __name__ == "__main__" :
     C = numpy.ones((1,1)) * 2.0;
 
     ## CHECK SOLUTION ##
-    #pdfSol = numpy.load('./llGAU.npy')
-    #pdfGau = logpdf_GAU_ND(mrow(XPlot), m, C)
-    #print(numpy.abs(pdfSol - pdfGau).max())
+    pdfSol = numpy.load('./llGAU.npy')
+    pdfGau = logpdf_GAU_ND(mrow(XND), mu, C)
+    print(numpy.abs(pdfSol - pdfGau).max())
+
+    plt.figure();
+    plt.plot(XND.ravel(), numpy.exp(logpdf_GAU_ND(mrow(XND), mu, C)));
+    plt.show();
 
     ## CHECK SOLUTION ##
     XND = numpy.load('./XND.npy')
@@ -49,7 +53,7 @@ if __name__ == "__main__" :
     XNDC = XND - uML;
     # compute the variance matrix
     vML = numpy.dot(XNDC,XNDC.T)/XNDC.shape[1];
-    # print(uML); print(vML);
+    print(uML); print(vML);
     # print log-likelihood
     print(loglikelihood(XND,uML,vML));
 
@@ -58,7 +62,7 @@ if __name__ == "__main__" :
     m_ML = mcol(X1D.mean(1));
     X1DC = X1D - m_ML;
     C_ML = numpy.dot(X1DC,X1DC.T)/X1DC.shape[1];
-    # print(m_ML); print(C_ML);
+    print(m_ML); print(C_ML);
 
     ## PLOT DIFF BETWEEN THE REAL DATA AND MY ESTIMATION
     plt.figure();

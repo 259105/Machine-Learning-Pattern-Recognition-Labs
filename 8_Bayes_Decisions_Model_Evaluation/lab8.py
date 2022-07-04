@@ -29,13 +29,17 @@ def split_db_2to1(D, L, seed=0):
 
     return (DTR, LTR), (DTE, LTE)
 
-def logpdf_GAU_ND(x, mu, C):
-    first = -mu.shape[0]/2*numpy.log(2*numpy.pi)
-    second = -1/2*numpy.linalg.slogdet(C)[1]
-    xc = x - mu  # center the values
-    third = -1/2*numpy.dot(numpy.dot(xc.T, numpy.linalg.inv(C)), xc)
-    # take only the rows (i,i)
-    return numpy.diagonal(first+second+third)
+def logpdf_GAU_ND(X, mu, C):
+    M = mu.shape[0]  # dimensions
+    pi = numpy.pi
+    Precision = numpy.linalg.inv(C)
+
+    first = -M / 2 * numpy.log(2 * pi)
+    second = -0.5 * numpy.linalg.slogdet(C)[1]
+    XC = X - mu  # center the values
+    third_1 = numpy.dot(XC.T, Precision)
+    third = -0.5 * (third_1.T * XC).sum(0)
+    return first + second + third
 
 def MVG_Classifier_Model(DTR, LTR, K):
     D = DTR.shape[0]
@@ -209,7 +213,7 @@ def DCF_min(llr, L, p, Cfn, Cfp):
     return numpy.array(B_norm).min()
 
 def print_ROC(llr, L):
-    ts = numpy.array(llr);
+    ts = numpy.array(llr)
     ts.sort()
     ts = numpy.concatenate((numpy.array([-numpy.inf]), ts, numpy.array([+numpy.inf])))
     x = []
@@ -226,7 +230,7 @@ def print_ROC(llr, L):
     plt.figure()
     plt.xlabel("FPR")
     plt.ylabel("TPR")
-    plt.scatter(x, y, linewidths=0)
+    plt.scatter(x, y, s=4)
     plt.show()
 
 def bayes_error_addToPlot(llr, L, title):
@@ -323,6 +327,7 @@ if __name__ == "__main__":
     print("(0.5, 1, 1)")
     P = assign_label_bin(llr_inf_par, 0.5, 1, 1)
     M = compute_confusion_matrix_oK(P, labels_inf_par)
+    print(M)
     B = DCF_u_bin(llr_inf_par, labels_inf_par, 0.5, 1, 1)
     B = DCF_norm_bin(llr_inf_par, labels_inf_par, 0.5, 1, 1)
     print(B)
@@ -336,6 +341,7 @@ if __name__ == "__main__":
     print("(0.8, 1, 1)")
     P = assign_label_bin(llr_inf_par, 0.8, 1, 1)
     M = compute_confusion_matrix_oK(P, labels_inf_par)
+    print(M)
     B = DCF_u_bin(llr_inf_par, labels_inf_par, 0.8, 1, 1)
     B = DCF_norm_bin(llr_inf_par, labels_inf_par, 0.8, 1, 1)
     print(B)
@@ -349,6 +355,7 @@ if __name__ == "__main__":
     print("(0.5, 10, 1)")
     P = assign_label_bin(llr_inf_par, 0.5, 10, 1)
     M = compute_confusion_matrix_oK(P, labels_inf_par)
+    print(M)
     B = DCF_u_bin(llr_inf_par, labels_inf_par, 0.5, 10, 1)
     B = DCF_norm_bin(llr_inf_par, labels_inf_par, 0.5, 10, 1)
     print(B)
@@ -362,6 +369,7 @@ if __name__ == "__main__":
     print("(0.8, 1, 10)")
     P = assign_label_bin(llr_inf_par, 0.8, 1, 10)
     M = compute_confusion_matrix_oK(P, labels_inf_par)
+    print(M)
     B = DCF_u_bin(llr_inf_par, labels_inf_par, 0.8, 1, 10)
     B = DCF_norm_bin(llr_inf_par, labels_inf_par, 0.8, 1, 10)
     print(B)

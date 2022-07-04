@@ -106,7 +106,7 @@ if __name__ == "__main__" :
 
     ## COMPUTING THE EIG VALUES OF THE GENERALIZED EIGENVALUE PROBLEM FOR HERMITIAN MATRICIES
     s, U = scipy.linalg.eigh(Sb,Sw); # numpy here don't work, numpy don't solve the generalized problem
-    W = U[:,::-1][:,0:(m if m<K else K-1)]; # take the voluted dimension if it is <= K-1, constraints given by the LDA
+    W = U[:,::-1][:,0:(m if m<=K-1 else K-1)]; # take the voluted dimension if it is <= K-1, constraints given by the LDA
  
     ## PRINT ERRO OF MY SOLUTION VS THE SOL OF PROF ##
     print(W-numpy.load("IRIS_LDA_matrix_m2.npy"));
@@ -119,7 +119,7 @@ if __name__ == "__main__" :
     #print(W);
 
     ## CHECK IF IT'S CORRECT ##
-    #print(numpy.linalg.svd(numpy.hstack([W,numpy.load("IRIS_LDA_matrix_m2.npy")]))[1]); # must have at most m non-zero singular values
+    ## print(numpy.linalg.svd(numpy.hstack([W,numpy.load("IRIS_LDA_matrix_m2.npy")]))[1]); # must have at most m non-zero singular values
 
     ## PROJECTING DATA ON NEW BASE ##
     DPLDAO = numpy.dot(WO.T,D);
